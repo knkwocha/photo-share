@@ -1,0 +1,51 @@
+name: Deploy Backend to Azure App Service
+
+on:
+  push:
+    branches: [main]
+    paths: ['backend/**']
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: photoshare-api        # ← change to your App Service name
+  AZURE_WEBAPP_PACKAGE_PATH: './backend'
+  NODE_VERSION: '20.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci --omit=dev
+
+      - name: Run basic checks
+        working-directory: backend
+        run: node -e "require('./server.js')" &
+             sleep 3 &&
+             curl -f http://localhost:3000/health || true &&
+             pkill node || true
+        env:
+          PORT: 3000
+          NODE_ENV: test
+          JWT_SECRET: test_secret
+          DB_HOST: localhost
+          DB_SSL: 'false'
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhotoShare — Sign In</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    body { overflow: hidden; }
+    .hero { align-items: center; justify-content: center; }
+    .hero__bg {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(232,200,122,.08) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(100,80,180,.06) 0%, transparent 50%),
+        var(--bg);
+    }
+    .brand-large {
+      font-family: var(--font-serif); font-size: clamp(2.5rem, 6vw, 4.5rem);
+      color: var(--text); letter-spacing: -.03em; text-align: center;
+      margin-bottom: 8px;
+    }
+    .brand-large em { color: var(--accent); font-style: italic; }
+    .tagline { color: var(--text-muted); font-size: 1rem; text-align: center; margin-bottom: 48px; }
+    .dual-panel {
+      display: flex; gap: 48px; align-items: flex-start;
+      width: 100%; max-width: 900px;
+    }
+    .panel-info { flex: 1; display: none; }
+    @media (min-width: 800px) { .panel-info { display: block; } }
+    .feature-list { list-style: none; display: flex; flex-direction: column; gap: 20px; padding-top: 16px; }
+    .feature-item { display: flex; gap: 14px; align-items: flex-start; }
+    .feature-icon { font-size: 1.4rem; width: 36px; text-align: center; flex-shrink: 0; }
+    .feature-text h4 { font-weight: 600; font-size: .95rem; margin-bottom: 3px; }
+    .feature-text p { font-size: .85rem; color: var(--text-muted); }
+    .auth-error { background: rgba(224,85,85,.12); border: 1px solid var(--danger); color: var(--danger); padding: 10px 14px; border-radius: var(--radius); font-size: .875rem; display: none; }
+    .auth-error.visible { display: block; }
+    .divider { display: flex; align-items: center; gap: 12px; color: var(--text-dim); font-size: .8125rem; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="hero__bg"></div>
+    <div style="position:relative;z-index:1;width:100%;padding:40px 24px;display:flex;flex-direction:column;align-items:center;">
+      <h1 class="brand-large">Photo<em>Share</em></h1>
+      <p class="tagline">A cloud-native photography platform. Create. Curate. Connect.</p>
+
+      <div class="dual-panel">
+        <!-- Feature list (desktop only) -->
+        <div class="panel-info">
+          <ul class="feature-list">
+            <li class="feature-item">
+              <span class="feature-icon">📷</span>
+              <div class="feature-text">
+                <h4>Creator Uploads</h4>
+                <p>Upload photos with rich metadata — title, caption, location, and tagged people.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">🤖</span>
+              <div class="feature-text">
+                <h4>AI Image Analysis</h4>
+                <p>Azure Cognitive Services auto-tags every upload and screens for content safety.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">⭐</span>
+              <div class="feature-text">
+                <h4>Rate & Comment</h4>
+                <p>Consumers can rate 1–5 stars and leave comments with sentiment analysis.</p>
+              </div>
+            </li>
+            <li class="feature-item">
+              <span class="feature-icon">☁️</span>
+              <div class="feature-text">
+                <h4>Azure-Powered Scale</h4>
+                <p>Backed by Blob Storage, PostgreSQL Flexible Server, Redis Cache and CDN.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Auth panel -->
+        <div class="auth-panel">
+          <div class="auth-tabs">
+            <button class="auth-tab active" onclick="switchTab('login')">Sign In</button>
+            <button class="auth-tab" onclick="switchTab('register')">Register</button>
+          </div>
+
+          <div id="tab-login">
+            <div class="auth-error" id="login-error"></div>
+            <div class="form-group">
+              <label>Email</label>
+              <input id="login-email" type="email" class="input" placeholder="you@example.com" autocomplete="email">
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input id="login-password" type="password" class="input" placeholder="••••••••" autocomplete="current-password">
+            </div>
+            <button class="btn btn--primary" style="width:100%;margin-top:8px" id="login-btn" onclick="doLogin()">Sign In</button>
+          </div>
+
+          <div id="tab-register" style="display:none">
+            <div class="auth-error" id="register-error"></div>
+            <div class="form-group">
+              <label>Username</label>
+              <input id="reg-username" type="text" class="input" placeholder="your_handle">
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input id="reg-email" type="email" class="input" placeholder="you@example.com">
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input id="reg-password" type="password" class="input" placeholder="Min. 8 characters">
+            </div>
+            <div class="divider" style="margin:4px 0">Creator account?</div>
+            <div class="form-group">
+              <label>Creator Key <span style="color:var(--text-dim)">(optional)</span></label>
+              <input id="reg-creator-key" type="password" class="input" placeholder="Leave blank for consumer account">
+            </div>
+            <button class="btn btn--primary" style="width:100%;margin-top:8px" id="register-btn" onclick="doRegister()">Create Account</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script>
+    // Redirect if already logged in
+    if (localStorage.getItem('ps_token')) {
+      const user = getUser();
+      window.location.href = user?.role === 'consumer' ? 'consumer.html' : 'creator.html';
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.auth-tab').forEach((el, i) => el.classList.toggle('active', (i === 0) === (tab === 'login')));
+      document.getElementById('tab-login').style.display   = tab === 'login'    ? 'flex' : 'none';
+      document.getElementById('tab-register').style.display = tab === 'register' ? 'flex' : 'none';
+      document.getElementById('tab-login').style.flexDirection = 'column';
+      document.getElementById('tab-login').style.gap = '14px';
+      document.getElementById('tab-register').style.flexDirection = 'column';
+      document.getElementById('tab-register').style.gap = '14px';
+    }
+    switchTab('login'); // init flex layout
+
+    async function doLogin() {
+      const btn = document.getElementById('login-btn');
+      const errEl = document.getElementById('login-error');
+      errEl.classList.remove('visible');
+      btn.disabled = true; btn.textContent = 'Signing in…';
+      try {
+        const data = await apiFetch('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: document.getElementById('login-email').value,
+            password: document.getElementById('login-password').value,
+          }),
+        });
+        localStorage.setItem('ps_token', data.token);
+        localStorage.setItem('ps_user', JSON.stringify(data.user));
+        window.location.href = data.user.role === 'consumer' ? 'consumer.html' : 'creator.html';
+      } catch (err) {
+        errEl.textContent = err.message || 'Login failed';
+        errEl.classList.add('visible');
+        btn.disabled = false; btn.textContent = 'Sign In';
+      }
+    }
+
+    async function doRegister() {
+      const btn = document.getElementById('register-btn');
+      const errEl = document.getElementById('register-error');
+      errEl.classList.remove('visible');
+      btn.disabled = true; btn.textContent = 'Creating account…';
+      const creatorKey = document.getElementById('reg-creator-key').value;
+      const endpoint = creatorKey ? '/api/auth/register/creator' : '/api/auth/register/consumer';
+      try {
+        const body = {
+          username: document.getElementById('reg-username').value,
+          email: document.getElementById('reg-email').value,
+          password: document.getElementById('reg-password').value,
+        };
+        if (creatorKey) body.creatorSecret = creatorKey;
+        const data = await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(body) });
+        localStorage.setItem('ps_token', data.token);
+        localStorage.setItem('ps_user', JSON.stringify(data.user));
+        window.location.href = data.user.role === 'consumer' ? 'consumer.html' : 'creator.html';
+      } catch (err) {
+        errEl.textContent = err.message || 'Registration failed';
+        errEl.classList.add('visible');
+        btn.disabled = false; btn.textContent = 'Create Account';
+      }
+    }
+
+    // Enter key support
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      if (!document.getElementById('tab-login').style.display || document.getElementById('tab-login').style.display !== 'none') doLogin();
+      else doRegister();
+    });
+  </script>
+</body>
+</html>

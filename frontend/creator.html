@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Creator Dashboard — PhotoShare</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .main-panel { flex: 1; min-width: 0; }
+    .panel-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+    .panel-tab {
+      padding: 12px 20px; font-size: .9rem; color: var(--text-muted);
+      border-bottom: 2px solid transparent; transition: var(--transition);
+    }
+    .panel-tab.active { color: var(--accent); border-color: var(--accent); }
+    .panel-section { display: none; }
+    .panel-section.active { display: block; }
+    .photo-manage-row {
+      display: flex; gap: 14px; align-items: flex-start; padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .photo-manage-row img { width: 80px; height: 80px; object-fit: cover; border-radius: var(--radius); flex-shrink: 0; }
+    .photo-manage-info { flex: 1; }
+    .photo-manage-info h4 { font-size: .95rem; font-weight: 600; margin-bottom: 4px; }
+    .photo-manage-info p { font-size: .8125rem; color: var(--text-muted); }
+    .photo-manage-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+    .upload-card {
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px;
+    }
+    #upload-progress-wrap { display: none; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar__inner">
+      <a href="creator.html" class="navbar__logo">Photo<span>Share</span></a>
+      <div class="navbar__links">
+        <a href="consumer.html" class="btn btn--ghost btn--sm">Browse Feed</a>
+        <button class="btn btn--ghost btn--sm" id="nav-username">—</button>
+        <button class="btn btn--ghost btn--sm" onclick="logout()">Sign Out</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page-wrap container">
+    <div class="dashboard-grid">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar__avatar" id="avatar-initials">?</div>
+        <div style="font-weight:600;margin-bottom:4px" id="sidebar-name">—</div>
+        <div style="font-size:.8125rem;color:var(--text-muted);margin-bottom:16px">Creator Account</div>
+        <div class="sidebar__stat">
+          <span style="color:var(--text-muted);font-size:.875rem">Photos</span>
+          <span class="stat-value" id="stat-photos">0</span>
+        </div>
+        <div class="sidebar__stat">
+          <span style="color:var(--text-muted);font-size:.875rem">Total Views</span>
+          <span class="stat-value" id="stat-views">0</span>
+        </div>
+        <div class="sidebar__stat">
+          <span style="color:var(--text-muted);font-size:.875rem">Avg Rating</span>
+          <span class="stat-value" id="stat-rating">—</span>
+        </div>
+        <div class="sidebar__stat">
+          <span style="color:var(--text-muted);font-size:.875rem">Comments</span>
+          <span class="stat-value" id="stat-comments">0</span>
+        </div>
+      </aside>
+
+      <!-- Main panel -->
+      <div class="main-panel">
+        <div class="panel-tabs">
+          <button class="panel-tab active" onclick="switchPanel('upload')">Upload Photo</button>
+          <button class="panel-tab" onclick="switchPanel('manage')">My Photos</button>
+        </div>
+
+        <!-- Upload tab -->
+        <div class="panel-section active" id="panel-upload">
+          <div class="upload-card">
+            <h2 style="margin-bottom:20px">Upload a Photo</h2>
+
+            <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+              <div class="drop-zone__icon">📷</div>
+              <div>Drag & drop or <strong style="color:var(--accent)">click to browse</strong></div>
+              <div style="font-size:.8125rem;color:var(--text-dim);margin-top:6px">JPEG, PNG, WebP or GIF · Max 20 MB</div>
+              <div class="drop-zone__preview" id="preview-wrap" style="display:none">
+                <img id="preview-img" src="" alt="Preview">
+              </div>
+            </div>
+            <input type="file" id="file-input" accept="image/*" style="display:none">
+
+            <div class="upload-form" style="margin-top:20px">
+              <div class="form-group form-group--full">
+                <label>Title *</label>
+                <input id="up-title" type="text" class="input" placeholder="Give your photo a title">
+              </div>
+              <div class="form-group form-group--full">
+                <label>Caption</label>
+                <textarea id="up-caption" class="textarea" placeholder="Tell the story behind this photo…"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Location</label>
+                <input id="up-location" type="text" class="input" placeholder="e.g. Belfast, Northern Ireland">
+              </div>
+              <div class="form-group">
+                <label>People Present</label>
+                <input id="up-people" type="text" class="input" placeholder="Comma-separated names">
+              </div>
+            </div>
+
+            <div id="upload-progress-wrap">
+              <div style="display:flex;justify-content:space-between;font-size:.8125rem;color:var(--text-muted);margin-bottom:6px">
+                <span>Uploading…</span><span id="upload-pct">0%</span>
+              </div>
+              <div class="progress-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+            </div>
+
+            <div style="margin-top:20px;display:flex;gap:12px">
+              <button class="btn btn--primary" id="upload-btn" onclick="doUpload()">Upload Photo</button>
+              <button class="btn btn--ghost" onclick="resetUploadForm()">Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manage tab -->
+        <div class="panel-section" id="panel-manage">
+          <div id="manage-content">
+            <div class="loader"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit modal -->
+  <div class="modal-backdrop" id="edit-modal">
+    <div class="modal" style="grid-template-columns:1fr;max-width:480px;padding:28px;">
+      <button class="modal__close" onclick="closeEditModal()" style="position:absolute;top:12px;right:12px">✕</button>
+      <h3 style="font-family:var(--font-serif);margin-bottom:16px">Edit Photo</h3>
+      <input type="hidden" id="edit-id">
+      <div class="form-group"><label>Title</label><input id="edit-title" class="input"></div>
+      <div class="form-group"><label>Caption</label><textarea id="edit-caption" class="textarea"></textarea></div>
+      <div class="form-group"><label>Location</label><input id="edit-location" class="input"></div>
+      <div class="form-group"><label>People Present</label><input id="edit-people" class="input"></div>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button class="btn btn--primary" onclick="saveEdit()">Save Changes</button>
+        <button class="btn btn--ghost" onclick="closeEditModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script>
+    requireAuth();
+    const user = getUser();
+    if (!user || !['creator', 'admin'].includes(user.role)) {
+      window.location.href = 'consumer.html';
+    }
+
+    // Nav
+    document.getElementById('nav-username').textContent = user.username;
+    document.getElementById('sidebar-name').textContent = user.username;
+    document.getElementById('avatar-initials').textContent = user.username[0].toUpperCase();
+
+    // ─── Panel switching ───────────────────────────────────────────────────
+    function switchPanel(name) {
+      document.querySelectorAll('.panel-tab').forEach((el, i) =>
+        el.classList.toggle('active', (i === 0) === (name === 'upload')));
+      document.querySelectorAll('.panel-section').forEach((el) =>
+        el.classList.remove('active'));
+      document.getElementById('panel-' + name).classList.add('active');
+      if (name === 'manage') loadMyPhotos();
+    }
+
+    // ─── File drag/drop ────────────────────────────────────────────────────
+    let selectedFile = null;
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault(); dropZone.classList.remove('dragover');
+      handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+
+    function handleFile(file) {
+      if (!file) return;
+      if (file.size > 20 * 1024 * 1024) { showToast('File exceeds 20 MB limit', 'error'); return; }
+      selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById('preview-img').src = e.target.result;
+        document.getElementById('preview-wrap').style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // ─── Upload ────────────────────────────────────────────────────────────
+    async function doUpload() {
+      if (!selectedFile) { showToast('Please select a photo', 'error'); return; }
+      const title = document.getElementById('up-title').value.trim();
+      if (!title) { showToast('Title is required', 'error'); return; }
+
+      const btn = document.getElementById('upload-btn');
+      btn.disabled = true; btn.textContent = 'Uploading…';
+      document.getElementById('upload-progress-wrap').style.display = 'block';
+      animateProgress();
+
+      const fd = new FormData();
+      fd.append('photo', selectedFile);
+      fd.append('title', title);
+      fd.append('caption', document.getElementById('up-caption').value);
+      fd.append('location', document.getElementById('up-location').value);
+      fd.append('people_present', document.getElementById('up-people').value);
+
+      try {
+        const token = localStorage.getItem('ps_token');
+        const res = await fetch(`${CONFIG.API_BASE_URL}/api/photos`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+        showToast('Photo uploaded successfully!', 'success');
+        resetUploadForm();
+        loadStats();
+      } catch (err) {
+        showToast(err.message || 'Upload failed', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Upload Photo';
+        document.getElementById('upload-progress-wrap').style.display = 'none';
+        document.getElementById('progress-bar').style.width = '0';
+      }
+    }
+
+    function animateProgress() {
+      let p = 0;
+      const iv = setInterval(() => {
+        p = Math.min(p + Math.random() * 8, 90);
+        document.getElementById('progress-bar').style.width = p + '%';
+        document.getElementById('upload-pct').textContent = Math.round(p) + '%';
+        if (p >= 90) clearInterval(iv);
+      }, 200);
+    }
+
+    function resetUploadForm() {
+      selectedFile = null;
+      fileInput.value = '';
+      document.getElementById('preview-wrap').style.display = 'none';
+      ['up-title','up-caption','up-location','up-people'].forEach(id => document.getElementById(id).value = '');
+    }
+
+    // ─── Load stats + my photos ────────────────────────────────────────────
+    async function loadStats() {
+      try {
+        const photos = await apiFetch('/api/users/me/photos');
+        document.getElementById('stat-photos').textContent = photos.length;
+        document.getElementById('stat-views').textContent = photos.reduce((s, p) => s + (p.view_count || 0), 0);
+        const rated = photos.filter(p => p.rating_count > 0);
+        document.getElementById('stat-rating').textContent = rated.length
+          ? (rated.reduce((s, p) => s + parseFloat(p.average_rating), 0) / rated.length).toFixed(1) + ' ★'
+          : '—';
+        document.getElementById('stat-comments').textContent = photos.reduce((s, p) => s + parseInt(p.comment_count || 0), 0);
+      } catch (_) {}
+    }
+
+    async function loadMyPhotos() {
+      const el = document.getElementById('manage-content');
+      el.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+      try {
+        const photos = await apiFetch('/api/users/me/photos');
+        if (!photos.length) {
+          el.innerHTML = '<div class="empty-state"><div class="empty-state__icon">📷</div><p>No photos yet. Upload your first one!</p></div>';
+          return;
+        }
+        el.innerHTML = photos.map(p => `
+          <div class="photo-manage-row">
+            <img src="${p.blob_url}" alt="${p.title}" loading="lazy" onerror="this.src='https://via.placeholder.com/80x80/18181e/555560?text=📷'">
+            <div class="photo-manage-info">
+              <h4>${p.title}</h4>
+              <p>${p.location || 'No location'} · ${formatDate(p.created_at)}</p>
+              <p style="margin-top:4px">👁 ${p.view_count} · ⭐ ${parseFloat(p.average_rating).toFixed(1)} (${p.rating_count}) · 💬 ${p.comment_count}</p>
+              ${p.tags?.length ? `<div class="tags-row" style="margin-top:6px">${p.tags.slice(0,5).map(t=>`<span class="tag-chip">${t}</span>`).join('')}</div>` : ''}
+            </div>
+            <div class="photo-manage-actions">
+              <button class="btn btn--ghost btn--sm" onclick="openEditModal(${JSON.stringify(p).replace(/"/g,'&quot;')})">Edit</button>
+              <button class="btn btn--danger btn--sm" onclick="deletePhoto('${p.id}', this)">Delete</button>
+            </div>
+          </div>`).join('');
+      } catch (err) {
+        el.innerHTML = `<div class="empty-state"><p>Failed to load photos: ${err.message}</p></div>`;
+      }
+    }
+
+    // ─── Edit / Delete ─────────────────────────────────────────────────────
+    function openEditModal(photo) {
+      document.getElementById('edit-id').value = photo.id;
+      document.getElementById('edit-title').value = photo.title;
+      document.getElementById('edit-caption').value = photo.caption || '';
+      document.getElementById('edit-location').value = photo.location || '';
+      document.getElementById('edit-people').value = (photo.people_present || []).join(', ');
+      document.getElementById('edit-modal').classList.add('active');
+    }
+    function closeEditModal() { document.getElementById('edit-modal').classList.remove('active'); }
+    document.getElementById('edit-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditModal(); });
+
+    async function saveEdit() {
+      const id = document.getElementById('edit-id').value;
+      try {
+        await apiFetch(`/api/photos/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            title: document.getElementById('edit-title').value,
+            caption: document.getElementById('edit-caption').value,
+            location: document.getElementById('edit-location').value,
+            people_present: document.getElementById('edit-people').value,
+          }),
+        });
+        showToast('Photo updated!', 'success');
+        closeEditModal();
+        loadMyPhotos();
+      } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    async function deletePhoto(id, btn) {
+      if (!confirm('Delete this photo permanently?')) return;
+      btn.disabled = true; btn.textContent = '…';
+      try {
+        await apiFetch(`/api/photos/${id}`, { method: 'DELETE' });
+        showToast('Photo deleted', 'success');
+        loadMyPhotos(); loadStats();
+      } catch (err) { showToast(err.message, 'error'); btn.disabled = false; btn.textContent = 'Delete'; }
+    }
+
+    // Init
+    loadStats();
+  </script>
+</body>
+</html>

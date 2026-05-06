@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browse — PhotoShare</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .feed-header {
+      padding: 32px 0 0;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .feed-title { font-family: var(--font-serif); font-size: clamp(1.6rem, 3vw, 2.2rem); }
+    .feed-controls {
+      display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    }
+    .pagination { display: flex; gap: 8px; align-items: center; padding: 32px 0; justify-content: center; }
+    .pagination button { min-width: 36px; height: 36px; border-radius: var(--radius); border: 1px solid var(--border); color: var(--text-muted); font-size: .875rem; transition: var(--transition); }
+    .pagination button:hover { color: var(--text); border-color: var(--text-muted); }
+    .pagination button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    .modal-comments-list { max-height: 220px; overflow-y: auto; }
+    .rating-row { display: flex; flex-direction: column; gap: 6px; }
+    .your-rating-label { font-size: .8125rem; color: var(--text-muted); }
+    .comment-form { display: flex; gap: 8px; margin-top: 8px; }
+    .comment-form input { flex: 1; }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar__inner">
+      <a href="consumer.html" class="navbar__logo">Photo<span>Share</span></a>
+      <div class="navbar__links">
+        <span id="nav-role" style="font-size:.8125rem;color:var(--text-muted);display:none" class="btn btn--ghost btn--sm">Creator</span>
+        <span id="nav-user" style="font-size:.875rem;color:var(--text-muted)">—</span>
+        <button class="btn btn--ghost btn--sm" onclick="logout()">Sign Out</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page-wrap container">
+    <div class="feed-header">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px">
+        <h1 class="feed-title">Discover Photos</h1>
+        <a id="creator-link" href="creator.html" class="btn btn--primary btn--sm" style="display:none">Go to Creator Dashboard →</a>
+      </div>
+      <div class="feed-controls">
+        <div class="search-bar" style="flex:1;min-width:200px">
+          <input type="text" id="search-input" placeholder="Search photos, locations, people…" oninput="debounceSearch()">
+          <button class="btn btn--primary btn--sm" onclick="doSearch()">Search</button>
+        </div>
+        <select class="select" style="width:auto;min-width:140px" id="sort-select" onchange="doSearch()">
+          <option value="newest">Newest First</option>
+          <option value="top_rated">Top Rated</option>
+          <option value="most_viewed">Most Viewed</option>
+          <option value="oldest">Oldest First</option>
+        </select>
+      </div>
+      <div class="filters" id="tag-filters">
+        <button class="filter-pill active" onclick="selectTag(null, this)">All</button>
+      </div>
+    </div>
+
+    <div id="photo-grid-wrap">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+    <div id="pagination" class="pagination"></div>
+  </div>
+
+  <!-- Photo modal -->
+  <div class="modal-backdrop" id="photo-modal">
+    <div class="modal">
+      <div class="modal__image-pane">
+        <img id="modal-img" src="" alt="">
+        <button class="modal__close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal__content-pane">
+        <div>
+          <h2 class="modal__title" id="modal-title"></h2>
+          <div class="modal__info-row" id="modal-meta" style="margin-top:8px"></div>
+        </div>
+        <p class="modal__caption" id="modal-caption"></p>
+        <p class="modal__caption" id="modal-ai-desc" style="font-style:italic;color:var(--accent);font-size:.85rem"></p>
+        <div class="tags-row" id="modal-tags"></div>
+
+        <!-- Rating -->
+        <div class="rating-row" id="rating-section">
+          <div class="your-rating-label">Your rating</div>
+          <div class="star-picker" id="star-picker">
+            <span class="star" data-v="1" onclick="ratePhoto(1)">☆</span>
+            <span class="star" data-v="2" onclick="ratePhoto(2)">☆</span>
+            <span class="star" data-v="3" onclick="ratePhoto(3)">☆</span>
+            <span class="star" data-v="4" onclick="ratePhoto(4)">☆</span>
+            <span class="star" data-v="5" onclick="ratePhoto(5)">☆</span>
+          </div>
+          <div id="modal-avg-rating"></div>
+        </div>
+
+        <!-- Comments -->
+        <div class="comments-section">
+          <div style="font-weight:600;margin-bottom:10px;font-size:.9rem">Comments <span id="comment-count" style="color:var(--text-muted)"></span></div>
+          <div class="modal-comments-list" id="comments-list">
+            <div class="loader" style="padding:20px"><div class="spinner"></div></div>
+          </div>
+          <div class="comment-form" style="margin-top:12px">
+            <input id="comment-input" type="text" class="input" placeholder="Add a comment…">
+            <button class="btn btn--primary btn--sm" onclick="postComment()">Post</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script>
+    requireAuth();
+    const user = getUser();
+
+    // Nav setup
+    document.getElementById('nav-user').textContent = user?.username || '—';
+    if (user?.role === 'creator' || user?.role === 'admin') {
+      document.getElementById('nav-role').style.display = 'inline-flex';
+      document.getElementById('creator-link').style.display = 'inline-flex';
+    }
+
+    let currentPage = 1;
+    let currentSearch = '';
+    let currentSort = 'newest';
+    let currentTag = null;
+    let currentPhotoId = null;
+    let searchTimeout = null;
+
+    // ─── Search / Load photos ──────────────────────────────────────────────
+    function debounceSearch() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(doSearch, 420);
+    }
+
+    function doSearch(page = 1) {
+      currentPage = page;
+      currentSearch = document.getElementById('search-input').value;
+      currentSort = document.getElementById('sort-select').value;
+      loadPhotos();
+    }
+
+    function selectTag(tag, btn) {
+      currentTag = tag;
+      document.querySelectorAll('.filter-pill').forEach(el => el.classList.remove('active'));
+      btn.classList.add('active');
+      loadPhotos();
+    }
+
+    async function loadPhotos() {
+      const wrap = document.getElementById('photo-grid-wrap');
+      wrap.innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: CONFIG.ITEMS_PER_PAGE,
+        sort: currentSort,
+      });
+      if (currentSearch) params.set('search', currentSearch);
+      if (currentTag) params.set('tag', currentTag);
+
+      try {
+        const data = await apiFetch(`/api/photos?${params}`);
+        if (!data.photos.length) {
+          wrap.innerHTML = '<div class="empty-state"><div class="empty-state__icon">🔍</div><p>No photos found.</p></div>';
+          document.getElementById('pagination').innerHTML = '';
+          return;
+        }
+
+        wrap.innerHTML = `<div class="photo-grid">${data.photos.map(p => `
+          <div class="photo-card" onclick="openPhoto('${p.id}')">
+            <img class="photo-card__img" src="${p.blob_url}" alt="${p.title}" loading="lazy"
+              onerror="this.src='https://via.placeholder.com/400x400/18181e/555560?text=📷'">
+            <div class="photo-card__overlay">
+              <div class="photo-card__title">${p.title}</div>
+              <div class="photo-card__meta">
+                ${p.creator_username} · ${parseFloat(p.average_rating).toFixed(1)}★ · 💬 ${p.comment_count}
+              </div>
+            </div>
+          </div>`).join('')}</div>`;
+
+        renderPagination(data.pages, data.page);
+        buildTagFilters(data.photos);
+      } catch (err) {
+        wrap.innerHTML = `<div class="empty-state"><p>Error: ${err.message}</p></div>`;
+      }
+    }
+
+    function renderPagination(pages, current) {
+      if (pages <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+      let html = '';
+      if (current > 1) html += `<button onclick="doSearch(${current-1})">←</button>`;
+      for (let i = 1; i <= pages; i++) {
+        html += `<button class="${i === current ? 'active' : ''}" onclick="doSearch(${i})">${i}</button>`;
+      }
+      if (current < pages) html += `<button onclick="doSearch(${current+1})">→</button>`;
+      document.getElementById('pagination').innerHTML = html;
+    }
+
+    function buildTagFilters(photos) {
+      const allTags = [...new Set(photos.flatMap(p => p.tags || []))].slice(0, 10);
+      const container = document.getElementById('tag-filters');
+      const existing = Array.from(container.querySelectorAll('.filter-pill')).slice(1).map(el => el.textContent);
+      allTags.forEach(tag => {
+        if (!existing.includes(tag)) {
+          const btn = document.createElement('button');
+          btn.className = 'filter-pill';
+          btn.textContent = tag;
+          btn.onclick = function() { selectTag(tag, this); };
+          container.appendChild(btn);
+        }
+      });
+    }
+
+    // ─── Photo modal ───────────────────────────────────────────────────────
+    async function openPhoto(id) {
+      currentPhotoId = id;
+      document.getElementById('photo-modal').classList.add('active');
+      document.getElementById('modal-img').src = '';
+      document.getElementById('modal-title').textContent = '…';
+      document.getElementById('modal-caption').textContent = '';
+      document.getElementById('modal-meta').innerHTML = '';
+      document.getElementById('modal-tags').innerHTML = '';
+      document.getElementById('modal-ai-desc').textContent = '';
+      document.getElementById('comments-list').innerHTML = '<div class="loader" style="padding:20px"><div class="spinner"></div></div>';
+      resetStars();
+
+      try {
+        const [photo, comments] = await Promise.all([
+          apiFetch(`/api/photos/${id}`),
+          apiFetch(`/api/photos/${id}/comments`),
+        ]);
+
+        document.getElementById('modal-img').src = photo.blob_url;
+        document.getElementById('modal-title').textContent = photo.title;
+        document.getElementById('modal-caption').textContent = photo.caption || '';
+        if (photo.ai_description) document.getElementById('modal-ai-desc').textContent = '🤖 ' + photo.ai_description;
+
+        const meta = [];
+        if (photo.creator_username) meta.push(`<span class="info-chip">📷 ${photo.creator_username}</span>`);
+        if (photo.location) meta.push(`<span class="info-chip">📍 ${photo.location}</span>`);
+        if (photo.people_present?.length) meta.push(`<span class="info-chip">👥 ${photo.people_present.join(', ')}</span>`);
+        meta.push(`<span class="info-chip">👁 ${photo.view_count}</span>`);
+        document.getElementById('modal-meta').innerHTML = meta.join('');
+
+        if (photo.tags?.length) {
+          document.getElementById('modal-tags').innerHTML = photo.tags.map(t => `<span class="tag-chip">${t}</span>`).join('');
+        }
+
+        document.getElementById('modal-avg-rating').innerHTML = starRating(photo.average_rating, photo.rating_count);
+        renderComments(comments);
+      } catch (err) {
+        document.getElementById('modal-title').textContent = 'Failed to load';
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('photo-modal').classList.remove('active');
+      currentPhotoId = null;
+    }
+    document.getElementById('photo-modal').addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeModal();
+    });
+
+    // ─── Rating ────────────────────────────────────────────────────────────
+    const picker = document.getElementById('star-picker');
+    picker.querySelectorAll('.star').forEach(star => {
+      star.addEventListener('mouseenter', () => highlightStars(parseInt(star.dataset.v)));
+      star.addEventListener('mouseleave', resetStars);
+    });
+
+    function highlightStars(n) {
+      picker.querySelectorAll('.star').forEach(s => {
+        const v = parseInt(s.dataset.v);
+        s.textContent = v <= n ? '★' : '☆';
+        s.classList.toggle('hover', v <= n);
+      });
+    }
+    function resetStars() {
+      picker.querySelectorAll('.star').forEach(s => { s.textContent = '☆'; s.classList.remove('hover'); });
+    }
+
+    async function ratePhoto(rating) {
+      if (!currentPhotoId) return;
+      try {
+        const result = await apiFetch(`/api/photos/${currentPhotoId}/rate`, {
+          method: 'POST',
+          body: JSON.stringify({ rating }),
+        });
+        highlightStars(rating);
+        document.getElementById('modal-avg-rating').innerHTML = starRating(result.average_rating, result.rating_count);
+        showToast('Rating saved!', 'success');
+      } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    // ─── Comments ──────────────────────────────────────────────────────────
+    function renderComments(comments) {
+      document.getElementById('comment-count').textContent = `(${comments.length})`;
+      if (!comments.length) {
+        document.getElementById('comments-list').innerHTML = '<p style="color:var(--text-dim);font-size:.875rem;padding:10px 0">No comments yet. Be the first!</p>';
+        return;
+      }
+      document.getElementById('comments-list').innerHTML = comments.map(c => `
+        <div class="comment">
+          <div class="comment__avatar">${(c.username||'?')[0].toUpperCase()}</div>
+          <div class="comment__body">
+            <div class="comment__author">${c.username || 'Unknown'}</div>
+            <div class="comment__text">${c.content}</div>
+            <div class="comment__meta">
+              <span>${formatDate(c.created_at)}</span>
+              ${c.sentiment ? `<span class="sentiment--${c.sentiment}">${c.sentiment}</span>` : ''}
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    async function postComment() {
+      const input = document.getElementById('comment-input');
+      const content = input.value.trim();
+      if (!content || !currentPhotoId) return;
+      try {
+        const comment = await apiFetch(`/api/photos/${currentPhotoId}/comments`, {
+          method: 'POST',
+          body: JSON.stringify({ content }),
+        });
+        input.value = '';
+        // Reload comments
+        const comments = await apiFetch(`/api/photos/${currentPhotoId}/comments`);
+        renderComments(comments);
+        showToast('Comment posted!', 'success');
+      } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    document.getElementById('comment-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') postComment();
+    });
+
+    // Init
+    loadPhotos();
+  </script>
+</body>
+</html>
