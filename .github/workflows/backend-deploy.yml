@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: photoshare-api        # ← change to your App Service name
+  AZURE_WEBAPP_NAME: photoshare-api-kj        # ← change to your App Service name
   AZURE_WEBAPP_PACKAGE_PATH: './backend'
   NODE_VERSION: '20.x'
 
