@@ -178,7 +178,7 @@
               <div class="photo-card__title">${p.title}</div>
               <div class="photo-card__meta">
                 ${p.creator_username} · ${parseFloat(p.average_rating).toFixed(1)}★ · 💬 ${p.comment_count}
-                ${p.ai_tags?.length ? <div style="display:flex;flex-wrap:wrap;gap:4px;padding;6px 10px 8px">${p.ai_tags.slice(0,3).map(t=>'<span style="background:rgba(201,162,39,0.85);color:#fff;padding:2px 8px;border-radius:10px;font-size=11px">${t}</span>').join('')}</div>': ''}
+                ${p.ai_tags?.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;padding:6px 10px 8px">${p.ai_tags.slice(0,3).map(t=>`<span style="background:rgba(201,162,39,0.85);color:#fff;padding:2px 8px;border-radius:10px;font-size:11px">${t}</span>`).join(``)}</div>`: ``}
               </div>
             </div>
           </div>`).join('')}</div>`;
