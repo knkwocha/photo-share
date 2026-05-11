@@ -178,6 +178,7 @@
               <div class="photo-card__title">${p.title}</div>
               <div class="photo-card__meta">
                 ${p.creator_username} · ${parseFloat(p.average_rating).toFixed(1)}★ · 💬 ${p.comment_count}
+                ${p.ai_tags?.length ? <div style="display:flex;flex-wrap:wrap;gap:4px;padding;6px 10px 8px">${p.ai_tags.slice(0,3).map(t=>'<span style="background:rgba(201,162,39,0.85);color:#fff;padding:2px 8px;border-radius:10px;font-size=11px">${t}</span>').join('')}</div>': ''}
               </div>
             </div>
           </div>`).join('')}</div>`;
@@ -246,8 +247,8 @@
         meta.push(`<span class="info-chip">👁 ${photo.view_count}</span>`);
         document.getElementById('modal-meta').innerHTML = meta.join('');
 
-        if (photo.tags?.length) {
-          document.getElementById('modal-tags').innerHTML = photo.tags.map(t => `<span class="tag-chip">${t}</span>`).join('');
+        if (photo.ai_tags?.length) {
+          document.getElementById('modal-tags').innerHTML = photo.ai_tags.map(t => `<span class="tag-chip">${t}</span>`).join('');
         }
 
         document.getElementById('modal-avg-rating').innerHTML = starRating(photo.average_rating, photo.rating_count);
